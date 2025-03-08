@@ -80,7 +80,7 @@ def estimate_gps_start(filename):
     file_rows['Estimated_Start'] = file_rows['GPS_t'] - pd.to_timedelta(file_rows['Video_t_sec'], unit='s')
     
     # Return mean of estimated starts
-    return file_rows['Estimated_Start'].mean().strftime('%Y-%m-%d %H:%M:%S')
+    return file_rows['Estimated_Start'].mean()
 
 if __name__ == "__main__":
     files = glob.glob(joinpath(config.DATA, "Orig_Audits", "*", "*"))
