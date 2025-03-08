@@ -1,6 +1,7 @@
 # Pranav Minasandra
 # pminasandra.github.io
 # Nov 29, 2023
+# Ported to Hyrax Project from meerkat-acc on Mar 08, 2025
 
 """
 Extract features from ACC data
@@ -119,8 +120,6 @@ def make_features_dir():
     """
 
     os.makedirs(os.path.join(config.DATA, "Features"), exist_ok=True)
-    for dplment in config.DEPLOYMENTS:
-        os.makedirs(os.path.join(config.DATA, "Features", dplment), exist_ok=True)
 
 
 def extract_all_features(accfile_generator):
@@ -131,7 +130,7 @@ def extract_all_features(accfile_generator):
             from each_second_of_data(...)
     """
 
-    for dplment, filename, df in accfile_generator:
+    for filename, df in accfile_generator:
 
         feature_df = {} # Not a df right now, but becomes one later. Minor hack to save mem
         feature_df["Timestamp"] = [] # timestamps will be stored here
@@ -148,7 +147,7 @@ def extract_all_features(accfile_generator):
                 feature_df[fname].append(fval)
 
         tgtfilename = filename + "_extracted_features.csv"
-        tgtfilepath = os.path.join(config.DATA, "Features", dplment, tgtfilename)
+        tgtfilepath = os.path.join(config.DATA, "Features", tgtfilename)
 
         feature_df = pd.DataFrame(feature_df)
         feature_df.to_csv(tgtfilepath, index=False)
