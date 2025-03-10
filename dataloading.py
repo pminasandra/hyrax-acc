@@ -38,3 +38,19 @@ def load_features():
         df = load_feature_file(f)
 
         yield fname, df
+
+def load_statefile(filepath):
+    """
+    Loads standard behavioural sequence
+    """
+
+    df = pd.read_csv(filepath)
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    return df
+
+def load_sequences(dirname, suffix):
+    for f in glob.glob(joinpaths(dirname, f"*_{suffix}.csv")):
+        fname = os.path.basename(f)
+        df = load_statefile(f)
+
+        yield fname, df
