@@ -13,6 +13,7 @@ DATA = os.path.join(PROJECTROOT, "Data")
 FIGURES = os.path.join(PROJECTROOT, "Figures")
 ACC_DIR = os.path.join(DATA, "ACC")
 AUDIT_DIR = os.path.join(DATA, "Readable_Audits") #Re-worked using conversions.py
+FEATURES_DIR = os.path.join(DATA, "Features")
 
 formats=['png', 'pdf', 'svg']
 
