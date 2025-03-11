@@ -54,6 +54,7 @@ def expand_behaviour_states(filename, df):
     # Create expanded DataFrame
     expanded_data = [[dt, bc, bs] for dt, (bc, bs, _) in sorted(second_wise_data.items())]
     expanded_df = pd.DataFrame(expanded_data, columns=['Timestamp', 'behaviour_class', 'behaviour_specific'])
+    expanded_df = expanded_df.dropna()
     
     return expanded_df
 
