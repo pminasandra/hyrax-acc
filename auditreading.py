@@ -44,7 +44,7 @@ def expand_behaviour_states(filename, df):
         end_sec = round(end_time.timestamp())
         
         for sec in range(start_sec, end_sec + 1):
-            sec_datetime = dt.datetime.fromtimestamp(sec)
+            sec_datetime = dt.datetime.fromtimestamp(sec) - dt.timedelta(hours=2)
             duration = min(end_sec, sec + 1) - max(start_sec, sec)  # Duration within this second
 
             # Store behavior if it's longer within the second
@@ -68,6 +68,7 @@ def validate_audit(df):
 #        assert state in config.BEHAVIORS
 
     df["Timestamp"] += dt.timedelta(seconds=config.ACC_AUDIT_OFFSET)
+    df["Timestamp"] += dt.timedelta(hours=-3)
 
 
 def load_auditfile(csvfilepath):
@@ -151,13 +152,4 @@ def load_audit_data_for(individual):
 
 
 if __name__ == "__main__":
-    for ind in config.INDIVIDUALS:
-        print(ind)
-        df = load_audit_data_for(ind)
-        df = df[df.behaviour_class!="Out of Sight"]
-        df = df[df.behaviour_class!=None]
-        df = df[df.behaviour_class!="OOS"]
-        df.reset_index(inplace=True)
-        print(df)
-        print(df.behaviour_class.unique())
-    print()
+    print(load_auditfile("/home/pranav/Personal/Projects/Hyrax_ACC_2025/Data/Readable_Audits/Axy1_JN_971343/202307070646_JN.csv"))

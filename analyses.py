@@ -9,6 +9,7 @@ from os.path import join as joinpath
 import re
 
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import pandas as pd
 
 import accreading
@@ -28,8 +29,8 @@ def plot_acc_beh(fig, ax, df_acc, df_beh):
     """
     
     # Plot x, y, z from df_acc
-    start_time = df_beh['Timestamp'].min()
-    end_time = df_beh['Timestamp'].max()
+    start_time = df_beh['Timestamp'].min() - pd.to_timedelta(1, unit='min')
+    end_time = df_beh['Timestamp'].max() + pd.to_timedelta(1, unit='min')
     df_acc_subset = df_acc[(df_acc['Timestamp'] >= start_time) & (df_acc['Timestamp'] <= end_time)]
 
     ax.plot(df_acc_subset['Timestamp'], df_acc_subset['X'], alpha=0.8)
@@ -41,12 +42,12 @@ def plot_acc_beh(fig, ax, df_acc, df_beh):
         start = df_beh.iloc[i]['Timestamp']
         end = df_beh.iloc[i + 1]['Timestamp']
         state = df_beh.iloc[i]['behaviour_class']
-        ax.axvspan(start, end, color=hash_color(state), alpha=0.3)
+        ax.axvspan(start, end, color=hash_color(state), alpha=0.3,
+                        edgecolor='none', linewidth=0)
     
     # Set labels and legend
     ax.set_xlabel('Time')
     ax.set_ylabel('Acceleration')
-    ax.set_title('Accelerometer Data with Behavioral States')
     
     # Rotate x-axis labels for better readability
     plt.xticks(rotation=45)
@@ -79,9 +80,13 @@ def load_acc(ind):
 
 def hash_color(label):
     """Generate a consistent color for each unique state label."""
+    import matplotlib.colors as mcolors
     import hashlib
+    colors = list(mcolors.TABLEAU_COLORS.values()) + list(mcolors.CSS4_COLORS.values())
     hash_val = int(hashlib.md5(label.encode()).hexdigest(), 16)
-    return plt.cm.tab10(hash_val % 10)
+
+    hash_val = int(hashlib.md5(label.encode()).hexdigest(), 16)
+    return colors[hash_val % len(colors)]
 
 CACHED_ACC_FILES = {}
 
@@ -121,7 +126,7 @@ def interactive_sync_check(cache_acc=True):
 
         # Plot data
         plot_acc_beh(fig, ax, df_acc, df_beh)
-
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
         # Improve interactivity
         plt.tight_layout()
         plt.show(block=True)  # Blocks execution until the window is closed
