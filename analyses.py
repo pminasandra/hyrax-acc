@@ -2,6 +2,7 @@
 # pminasandra.github.io
 # 11 Mar 2025
 
+import datetime as dt
 import glob
 import os
 import os.path
@@ -88,6 +89,23 @@ def hash_color(label):
     hash_val = int(hashlib.md5(label.encode()).hexdigest(), 16)
     return colors[hash_val % len(colors)]
 
+def normalize_timestamps(df, timestamp_col, start_time):
+    """
+    Adjusts timestamps so that the given start_time corresponds to 1970-01-01 00:00:00.
+    
+    Parameters:
+    df (pd.DataFrame): DataFrame containing timestamps.
+    timestamp_col (str): Column name with timestamps.
+    start_time (datetime): The reference start time to be mapped to epoch start.
+    
+    Returns:
+    pd.Series: Adjusted timestamps.
+    """
+    epoch_start = dt.datetime(1970, 1, 1)
+    time_shift = start_time - epoch_start
+    
+    return df[timestamp_col] - time_shift
+
 CACHED_ACC_FILES = {}
 
 def interactive_sync_check(cache_acc=True):
@@ -125,7 +143,13 @@ def interactive_sync_check(cache_acc=True):
         fig, ax = plt.subplots(figsize=(12, 6))
 
         # Plot data
-        plot_acc_beh(fig, ax, df_acc, df_beh)
+        dfs_acc = df_acc.copy()
+        dfs_acc["Timestamp"] = normalize_timestamps(dfs_acc, "Timestamp",
+                                    list(df_beh["Timestamp"])[0])
+        df_beh["Timestamp"] = normalize_timestamps(df_beh, "Timestamp",
+                                    list(df_beh["Timestamp"])[0])
+        print(dfs_acc, df_beh)
+        plot_acc_beh(fig, ax, dfs_acc, df_beh)
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M:%S'))
         # Improve interactivity
         plt.tight_layout()
