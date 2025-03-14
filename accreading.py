@@ -65,7 +65,8 @@ def load_acc_file(csvfilepath, subset_cols=True):
     csvfile['Timestamp'] = pd.to_datetime(csvfile['Timestamp'],
                                 format='%Y/%m/%d %H:%M:%S.%f')
     validate_acc_file(csvfile, subset_cols=subset_cols)
-    csvfile["Timestamp"] += pd.to_timedelta(-19, unit='s')
+    csvfile["Timestamp"] += pd.to_timedelta(config.ACC_GPS_OFFSET, unit='s')
+    # No correction of timezone required, already in UTC?
 
     return csvfile
 

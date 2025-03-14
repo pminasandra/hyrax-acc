@@ -44,11 +44,11 @@ def expand_behaviour_states(filename, df):
         end_sec = round(end_time.timestamp())
         
         for sec in range(start_sec, end_sec + 1):
-            sec_datetime = dt.datetime.fromtimestamp(sec) - dt.timedelta(hours=2)
+            sec_datetime = dt.datetime.fromtimestamp(sec) - dt.timedelta(hours=2)#POSIXTIME doesn't respect summer time, has to be a magic number
             duration = min(end_sec, sec + 1) - max(start_sec, sec)  # Duration within this second
 
             # Store behavior if it's longer within the second
-            if duration > second_wise_data[sec_datetime][2]:
+            if duration >= second_wise_data[sec_datetime][2]:
                 second_wise_data[sec_datetime] = (row['behaviour_class'], row['behaviour_specific'], duration)
     
     # Create expanded DataFrame
@@ -67,8 +67,8 @@ def validate_audit(df):
 #    for state in df['behaviour_class'].unique():
 #        assert state in config.BEHAVIORS
 
-    df["Timestamp"] += dt.timedelta(seconds=config.ACC_AUDIT_OFFSET)
-    df["Timestamp"] += dt.timedelta(hours=-3)
+    df["Timestamp"] += dt.timedelta(seconds=config.AUDIT_GPS_OFFSET)
+    df["Timestamp"] -= dt.timedelta(hours=config.TIMEZONE)
 
 
 def load_auditfile(csvfilepath):

@@ -34,9 +34,9 @@ def plot_acc_beh(fig, ax, df_acc, df_beh):
     end_time = df_beh['Timestamp'].max() + pd.to_timedelta(1, unit='min')
     df_acc_subset = df_acc[(df_acc['Timestamp'] >= start_time) & (df_acc['Timestamp'] <= end_time)]
 
-    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['X'], alpha=0.8)
-    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['Y'], alpha=0.8)
-    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['Z'], alpha=0.8)
+    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['X'], alpha=0.8, linewidth=0.4)
+    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['Y'], alpha=0.8, linewidth=0.4)
+    ax.plot(df_acc_subset['Timestamp'], df_acc_subset['Z'], alpha=0.8, linewidth=0.4)
     
     # Color-code background using df_beh
     for i in range(len(df_beh) - 1):
@@ -66,14 +66,29 @@ def load_audit(auditname):
     ind = auditname_sub.split("_")[1]
 
     fpath = joinpath(config.AUDIT_DIR, f"*_{ind}_*", auditname)
-    file_ = list(glob.glob(fpath))[0] #should be only one file
-    df = auditreading.load_auditfile(file_)
+    paths = list(glob.glob(fpath))
+    if len(paths) == 0:
+        print(f"No audit named {auditname} was found.")
+        return None
+    elif len(paths) == 1:
+        file_ = list(glob.glob(fpath))[0] #should be only one file
+        df = auditreading.load_auditfile(file_)
+    else:
+        raise ValueError(f"Multiple audits called {auditname} were found.\
+            That actually makes no sense at all.")
 
     return df
 
 def load_acc(ind):
     fpath = joinpath(config.ACC_DIR, f"*_{ind}_*.csv")
-    file_ = list(glob.glob(fpath))[0] #should be only one file
+    paths = list(glob.glob(fpath))
+    if len(paths) == 0:
+        print(f"No accelerometer files were found for {ind}.")
+        return None
+    elif len(paths) == 1:
+        file_ = paths[0] #should be only one file
+    else:
+        raise ValueError(f"Multiple accelerometer files were found for {ind}.")
 
     df = accreading.load_acc_file(file_)
     return df
@@ -138,6 +153,8 @@ def interactive_sync_check(cache_acc=True):
         else:
             df_acc = load_acc(individual)
         df_beh = load_audit(audit_name)
+        if df_acc is None or df_beh is None:
+            continue
 
         # Create figure and axes
         fig, ax = plt.subplots(figsize=(12, 6))
