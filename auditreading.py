@@ -24,6 +24,8 @@ if not config.SUPPRESS_INFORMATIVE_PRINT:
     old_print = print
     print = utilities.sprint
 
+sync_corrections = pd.read_csv(os.path.join(config.DATA, "audit_sync_corrs.csv"))
+
 def expand_behaviour_states(filename, df):
     """
     Expand a read audit to second-by-second records
@@ -83,6 +85,12 @@ def load_auditfile(csvfilepath):
     csvfile = pd.read_csv(csvfilepath)
     csvfile = expand_behaviour_states(csvfilepath, csvfile)
     csvfile['Timestamp'] = pd.to_datetime(csvfile['Timestamp'])
+
+    ftag = os.path.basename(csvfilepath)[:-len(".csv")]
+    sync_corr = sync_corrections[sync_corrections["filename"] == ftag]
+
+    sync_corr = sync_corr["sync_corr"].item()
+    csvfile["Timestamp"] += pd.to_timedelta(sync_corr, unit='s')
     validate_audit(csvfile)
 
 # TODO: talk to Vlad and get to all this
