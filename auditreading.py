@@ -82,6 +82,7 @@ def load_auditfile(csvfilepath):
     Raises:
         AssertionError: if there are inappropriate csvfiles
     """
+    print(os.path.basename(csvfilepath))
     csvfile = pd.read_csv(csvfilepath)
     csvfile = expand_behaviour_states(csvfilepath, csvfile)
     csvfile['Timestamp'] = pd.to_datetime(csvfile['Timestamp'])
