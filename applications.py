@@ -120,8 +120,8 @@ def indwise_analyze_random_forest(data, fig=None, ax=None):
 
     for ind in inds_available:
         print(f"testing classifier generalizability to {ind}.")
-        data_train = data[data["Individual"] != ind]
-        data_test = data[data["Individual"] == ind]
+        data_train = data[data["Individual"] != ind].copy()
+        data_test = data[data["Individual"] == ind].copy()
 
         train_features, train_classes = _split_features_and_classes(data_train)
         test_features, test_classes = _split_features_and_classes(data_test)
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     fig, ax = plt.subplots()
     indwise_analyze_random_forest(data, fig, ax)
 
-    print()
-    print("will now proceed with total classification")
-    rfc_total = classifier.train_random_forest(data_features, data_classes)
-    classify_all_available_data(rfc_total)
+    #print()
+    #print("will now proceed with total classification")
+    #rfc_total = classifier.train_random_forest(data_features, data_classes)
+    #classify_all_available_data(rfc_total)

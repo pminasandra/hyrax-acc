@@ -35,6 +35,13 @@ def expand_behaviour_states(filename, df):
     video_filename = filename.replace(".csv", "")
     video_filename = os.path.basename(video_filename)
     gps_start_time = conversions.estimate_gps_start(video_filename)
+
+    # this was the only place to skip ignoreable behaviours
+    # once the df is expanded, it becomes hard.
+
+    mask = df["behaviour_class"].isin(config.IGNORE_BEHS)
+    df.loc[mask, "behaviour_class"] = df["behaviour_class"].shift(1)
+    # replace those rows by preceding rows
     
     second_wise_data = defaultdict(lambda: (None, None, 0))  # {datetime: (class, specific, duration)}
     

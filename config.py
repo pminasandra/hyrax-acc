@@ -21,7 +21,19 @@ formats=['png', 'pdf', 'svg']
 INDIVIDUALS = ["JN", "TD", "AK", "F6", "PJ", "XP", "QM",
                 "C6", "CF", "HW", "BL"]
 DROP_BEHS = ["Time Synch", "END", "Out of Sight"]
-SCALE_DATA = False
+IGNORE_BEHS = ["Self-grooming", "Chewing"]
+MAP_BEHS = {
+    'Climbing': 'Locomotion',
+    'Rolling': 'Locomotion',
+    'Walking': 'Locomotion',
+    'Running': 'Locomotion',
+    'Lying': 'Lying',
+    'Scrabbling': 'Scrabbling',
+    'Sitting': 'Sitting',
+    'Standing': 'Standing',
+    'Vocalising': 'Vocalising'
+}
+SCALE_DATA = True
 LOG_TRANSFORM_VEDBA = True
 
 #Miscellaneous

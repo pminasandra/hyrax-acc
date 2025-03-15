@@ -101,7 +101,7 @@ def train_random_forest(train_features, train_classes):
         sklearn.ensemble.RandomForestClassifier
     """
     rfc = sklearn.ensemble.RandomForestClassifier(
-#            class_weight="balanced"
+            class_weight="balanced"
             )
     rfc.fit(train_features, train_classes)
     return rfc
@@ -112,6 +112,7 @@ if __name__=="__main__":
     data = data[["Timestamp", "Individual"]
                     + ALL_FEATURES + ["behaviour_class"]]
     data = data[~data["behaviour_class"].isin(config.DROP_BEHS)]
+    data["behaviour_class"] = data["behaviour_class"].replace(config.MAP_BEHS)
     os.makedirs(os.path.join(config.DATA, "ClassifierRelated"), exist_ok=True)
     data.to_csv(os.path.join(config.DATA,
             "ClassifierRelated",
