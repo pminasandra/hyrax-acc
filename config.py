@@ -36,6 +36,10 @@ MAP_BEHS = {
 SCALE_DATA = True
 LOG_TRANSFORM_VEDBA = True
 
+
+#Context-classifier
+timescales = ['1s', '3s', '5s', '7s', '9s', '11s']
+
 #Miscellaneous
 ACC_FILE_SEP = ";"
 AUDIT_GPS_OFFSET = 18 #FIXME

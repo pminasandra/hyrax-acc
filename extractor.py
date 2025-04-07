@@ -37,14 +37,14 @@ def feature(f):
     return f
 
 
-def each_second_of_data(acc_df):
+def each_unit_of_data(acc_df, unit='1s'):
     """
     GENERATOR!!
     """
 
     accreading.validate_acc_file(acc_df)
 
-    acc_df['TimestampRounded'] = acc_df['Timestamp'].dt.round('1s')
+    acc_df['TimestampRounded'] = acc_df['Timestamp'].dt.round(unit)
     for time, frame in acc_df.groupby("TimestampRounded"):
         yield time, frame
 
@@ -114,15 +114,15 @@ def _mean_vedba(frame):
 
 ##### FEATURES END HERE
 
-def make_features_dir():
+def make_features_dir(unit='1s'):
     """
     Ensures that there exists a features dir
     """
 
-    os.makedirs(os.path.join(config.DATA, "Features"), exist_ok=True)
+    os.makedirs(os.path.join(config.DATA, f"Features_{unit}"), exist_ok=True)
 
 
-def extract_all_features(accfile_generator):
+def extract_all_features(accfile_generator, unit='1s'):
     """
     Extracts features from all available data
     Args:
@@ -138,22 +138,24 @@ def extract_all_features(accfile_generator):
             feature_df[fname] = [] #features will be stored here
 
         print(f"now working on {filename}.")
-        secondwise_data_generator = each_second_of_data(df)
+        unitwisewise_data_generator = each_unit_of_data(df, unit=unit)
 
-        for time, frame in secondwise_data_generator:
+        for time, frame in unitwise_data_generator:
             feature_df['Timestamp'].append(time)
             for fname, ffunc in ALL_FEATURES.items():
                 fval = ffunc(frame)
                 feature_df[fname].append(fval)
 
         tgtfilename = filename + "_extracted_features.csv"
-        tgtfilepath = os.path.join(config.DATA, "Features", tgtfilename)
+        tgtfilepath = os.path.join(config.DATA, f"Features_{unit}", tgtfilename)
 
         feature_df = pd.DataFrame(feature_df)
         feature_df.to_csv(tgtfilepath, index=False)
 
 if __name__ == "__main__":
-    make_features_dir()
 
-    accfilegen = accreading.load_acc_files()
-    extract_all_features(accfilegen)
+    for tscale in config.timescales:
+        make_features_dir(unit=tscale)
+
+        accfilegen = accreading.load_acc_files()
+        extract_all_features(accfilegen) #highly inefficient, data loaded many times. but meh.
