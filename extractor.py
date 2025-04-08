@@ -57,16 +57,18 @@ def sliding_time_windows(df, k_seconds, time_col='Timestamp'):
     df.reset_index(drop=True, inplace=True)
 
     # Precompute all unique rounded seconds
-    df['Timestamp_Rounded'] = df[time_col].dt.round('1s')
-    unique_seconds = df['Timestamp_Rounded'].drop_duplicates()
+    timestamps = df["Timestamp"].values
+    half_window = np.timedelta64(int(k_seconds * 1e9 // 2), 'ns')
 
-    half_window = pd.Timedelta(seconds=k_seconds / 2)
+    rounded_seconds = pd.Series(timestamps).dt.round('1s').drop_duplicates().values
 
-    for t in unique_seconds:
+    for t in rounded_seconds:
         start = t - half_window
         end = t + half_window
-        mask = (df[time_col] >= start) & (df[time_col] < end)
-        yield t, df[mask]
+
+        i_start = timestamps.searchsorted(start, side='left')
+        i_end = timestamps.searchsorted(end, side='right')
+        yield pd.to_datetime(t), df.iloc[i_start:i_end]
 
 ##### FEATURES TO BE USED START HERE
 # NOTE: Start all these functions with '_'
