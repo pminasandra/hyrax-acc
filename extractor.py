@@ -9,6 +9,7 @@ Extract features from ACC data
 
 import os.path
 
+import numpy as np
 import pandas as pd
 
 import accreading
@@ -48,6 +49,24 @@ def each_unit_of_data(acc_df, unit='1s'):
     for time, frame in acc_df.groupby("TimestampRounded"):
         yield time, frame
 
+
+def sliding_time_windows(df, k_seconds, time_col='Timestamp'):
+    """Yield (center_time, df_window) for each second in the data."""
+    # Ensure timestamp column is datetime
+    df = df.copy()
+    df.reset_index(drop=True, inplace=True)
+
+    # Precompute all unique rounded seconds
+    df['Timestamp_Rounded'] = df[time_col].dt.round('1s')
+    unique_seconds = df['Timestamp_Rounded'].drop_duplicates()
+
+    half_window = pd.Timedelta(seconds=k_seconds / 2)
+
+    for t in unique_seconds:
+        start = t - half_window
+        end = t + half_window
+        mask = (df[time_col] >= start) & (df[time_col] < end)
+        yield t, df[mask]
 
 ##### FEATURES TO BE USED START HERE
 # NOTE: Start all these functions with '_'
@@ -114,20 +133,22 @@ def _mean_vedba(frame):
 
 ##### FEATURES END HERE
 
-def make_features_dir(unit='1s'):
+def make_features_dir(timescale=1):
     """
     Ensures that there exists a features dir
     """
 
-    os.makedirs(os.path.join(config.DATA, f"Features_{unit}"), exist_ok=True)
+    os.makedirs(os.path.join(config.DATA, f"Features_{timescale}s"), exist_ok=True)
 
 
-def extract_all_features(accfile_generator, unit='1s'):
+def extract_all_features(accfile_generator, time_window=1):
     """
     Extracts features from all available data
     Args:
         accfile_generator: a generator object, typically output
             from each_second_of_data(...)
+        time_window (int): how long the time-window around each second should be
+            for computing features
     """
 
     for filename, df in accfile_generator:
@@ -138,7 +159,7 @@ def extract_all_features(accfile_generator, unit='1s'):
             feature_df[fname] = [] #features will be stored here
 
         print(f"now working on {filename}.")
-        unitwisewise_data_generator = each_unit_of_data(df, unit=unit)
+        unitwise_data_generator = sliding_time_windows(df, time_window)
 
         for time, frame in unitwise_data_generator:
             feature_df['Timestamp'].append(time)
@@ -147,7 +168,7 @@ def extract_all_features(accfile_generator, unit='1s'):
                 feature_df[fname].append(fval)
 
         tgtfilename = filename + "_extracted_features.csv"
-        tgtfilepath = os.path.join(config.DATA, f"Features_{unit}", tgtfilename)
+        tgtfilepath = os.path.join(config.DATA, f"Features_{time_window}s", tgtfilename)
 
         feature_df = pd.DataFrame(feature_df)
         feature_df.to_csv(tgtfilepath, index=False)
@@ -155,7 +176,7 @@ def extract_all_features(accfile_generator, unit='1s'):
 if __name__ == "__main__":
 
     for tscale in config.timescales:
-        make_features_dir(unit=tscale)
+        make_features_dir(timescale=tscale)
 
         accfilegen = accreading.load_acc_files()
-        extract_all_features(accfilegen) #highly inefficient, data loaded many times. but meh.
+        extract_all_features(accfilegen, time_window=tscale) #highly inefficient, data loaded many times. but meh.

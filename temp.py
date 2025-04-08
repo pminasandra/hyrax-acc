@@ -1,6 +1,12 @@
+import glob
+import os.path
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+
+import config
+import accreading
 
 def get_gps_start_time(video_filename):
     # Placeholder for the actual function that retrieves the GPS start time
@@ -29,7 +35,11 @@ def expand_behaviour_states(filename, df):
     
     return expanded_df
 
-# Example usage:
-# df = pd.read_csv('input.csv')
-# expanded_df = expand_behaviour_states('202307050704_JN.csv', df)
+def make_all_parquet():
+    acc_filegen = accreading.load_acc_files()
+    for filename, df in acc_filegen:
+        tgtpath = os.path.join(config.ACC_DIR, filename + ".parquet")
+        df.to_parquet(tgtpath, index=False)
 
+if __name__ == "__main__":
+    make_all_parquet()

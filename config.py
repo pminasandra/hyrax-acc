@@ -38,7 +38,7 @@ LOG_TRANSFORM_VEDBA = True
 
 
 #Context-classifier
-timescales = ['1s', '3s', '5s', '7s', '9s', '11s']
+timescales = [1, 3, 5, 7, 9, 11]
 
 #Miscellaneous
 ACC_FILE_SEP = ";"
