@@ -89,7 +89,6 @@ def load_auditfile(csvfilepath):
     Raises:
         AssertionError: if there are inappropriate csvfiles
     """
-    print(os.path.basename(csvfilepath))
     csvfile = pd.read_csv(csvfilepath)
     csvfile = expand_behaviour_states(csvfilepath, csvfile)
     csvfile['Timestamp'] = pd.to_datetime(csvfile['Timestamp'])
@@ -128,12 +127,13 @@ def load_audits():
         yield os.path.basename(csvfilepath)[:-len(".csv")], csvfile
 
 
-def load_audit_data_for(individual):
+def load_audit_data_for(individual, join_audits=True):
     """
     Loads all available audit data for specified individual from specified 
     deployment.
     Args:
         individual (str)
+        join_audits (bool, def True): whether to concatenate all audit dataframes.
     Returns:
         pd.DataFrame
     Raises:
@@ -149,23 +149,23 @@ def load_audit_data_for(individual):
         return pd.DataFrame({"Timestamp": [], "behaviour_class": [], "behaviour_specific": []})
 
     all_data = [load_auditfile(file_) for file_ in tgtfiles]
-    all_data = pd.concat(all_data, ignore_index=True)
+    for dat in all_data:
+        dat.sort_values(by='Timestamp', inplace=True)
+        dat.reset_index(inplace=True, drop=True)
+        dat = dat[['Timestamp', 'behaviour_class', 'behaviour_specific']]
+        validate_audit(dat)
 
-    all_data.sort_values(by='Timestamp', inplace=True)
-    all_data.reset_index(inplace=True)
-    all_data = all_data[['Timestamp', 'behaviour_class', 'behaviour_specific']]
-    validate_audit(all_data)
-
-# TODO: talk to Vlad and get to all this
-#    if config.DROP_MISSING:
-#        all_data = all_data[all_data['Behavior'] != "No observation"]
-#    if config.COMBINE_BEHAVIORS:
-#        all_data['Behavior'] = all_data['Behavior'].map(config.BEHAVIOR_SIMPLIFIER)
-#    if config.DROP_OTHERS:
-#        all_data = all_data[all_data["Behavior"] != "Others"]
+    if join_audits:
+        all_data = pd.concat(all_data, ignore_index=True)
 
     return all_data
 
 
 if __name__ == "__main__":
-    print(load_auditfile("/home/pranav/Personal/Projects/Hyrax_ACC_2025/Data/Readable_Audits/Axy1_JN_971343/202307070646_JN.csv"))
+    inds = ["JN", "TD", "F6", "PJ", "QM", "C6", "CF"]
+    for ind in inds:
+        audits = load_audit_data_for(ind, join_audits=False)
+        k = 0
+        for audit in audits:
+            k += 1
+            print(f"{ind}: #{k}: {', '.join(list(audit.behaviour_class.unique()))}")

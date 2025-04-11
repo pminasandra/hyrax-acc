@@ -8,6 +8,7 @@ Analyse performance of random forest classifier
 """
 
 import glob
+import multiprocessing as mp
 import os
 import os.path
 
@@ -19,6 +20,7 @@ import sklearn.metrics
 import sklearn.model_selection
 from sklearn.preprocessing import StandardScaler
 
+import auditreading
 import config
 import classifier
 import extractor
@@ -135,41 +137,60 @@ def trad_analyze_random_forest(data, timescales, n=100,
     return clfreport, fig, ax
 
 
-def indwise_analyze_random_forest(data, fig=None, ax=None):
+def auditwise_analyze_random_forest(data, timescales, n=10, fig=None, ax=None):
     """
     Trains many random forest classifiers and tests on new individuals
     Args:
-        data (pd.DataFrame): output from classifier.load...
+        data (pd.DataFrame): all available training data.
+        timescales (list-like): which timescales data should be used from
+        n (int): how many times train-test data should be randomised, and
+                    a new classifier trained.
+        fig (plt.Figure)
+        ax (matplotlib.axes._axes.Axes): Where to make plots. if None, additional
+                           axes will be made.
     Returns:
         sklearn.metrics.classification_report (dict),
         fig,
-        ax 
+        ax
     """
-
     inds_available = data["Individual"].unique()
     true_classes = []
     pred_classes = []
 
+    features = [f'{ft}_{tscale}s' for ft in ALL_FEATURES for tscale in timescales]
+    data = data[features + ["Timestamp", "Individual", "behaviour_class"]].copy()
+
     for ind in inds_available:
-        print(f"testing classifier generalizability to {ind}.")
-        data_train = data[data["Individual"] != ind].copy()
-        data_test = data[data["Individual"] == ind].copy()
+        k = 0
+        for audit in auditreading.load_audit_data_for(ind, join_audits=False):
+            k += 1
+            print(f"Working on audit #{k} from {ind}.")
+            ind_mask = data["Individual"] == ind
+            time_mask = data["Timestamp"].isin(audit["Timestamp"])
 
-        train_features, train_classes = _split_features_and_classes(data_train)
-        test_features, test_classes = _split_features_and_classes(data_test)
+            data_test = data[ind_mask & time_mask]
+            if data_test.empty:
+                print("no feature data for this audit, continuing")
+                continue
+            data_train = data[~ind_mask | ~time_mask]
+            train_features, train_classes = _split_features_and_classes(data_train, features)
+            test_features, test_classes = _split_features_and_classes(data_test, features)
 
-        if config.SCALE_DATA:
-            scaler = StandardScaler()
-            scaler.fit(train_features)
+            if config.SCALE_DATA:
+                scaler = StandardScaler()
+                scaler.fit(train_features)
 
-            train_features = scaler.transform(train_features)
-            test_features = scaler.transform(test_features)
+                train_features = scaler.transform(train_features)
+                test_features = scaler.transform(test_features)
+            
+            for j in range(n):
+                rfc = classifier.train_random_forest(train_features, train_classes, class_weight="balanced")
+                preds = rfc.predict(test_features)
 
-        rfc = classifier.train_random_forest(train_features, train_classes)
-        preds = rfc.predict(test_features)
+                print(np.unique(test_classes), " ...... ", np.unique(preds))
 
-        true_classes.extend(list(test_classes))
-        pred_classes.extend(list(preds))
+                true_classes.extend(list(test_classes))
+                pred_classes.extend(list(preds))
 
     if fig is None and ax is None:
         fig, ax = plt.subplots()
@@ -177,16 +198,21 @@ def indwise_analyze_random_forest(data, fig=None, ax=None):
     sklearn.metrics.ConfusionMatrixDisplay.from_predictions(
             true_classes,
             pred_classes,
-            normalize='true',
+            normalize=None,
             ax=ax,
             cmap='Reds',
         )
 
-    utilities.saveimg(fig, "confusionmatrix_indwise_test")
+    if len(timescales) == 1:
+        tscale_id = f'{timescales[0]}s_only'
+    elif len(timescales) > 1:
+        tscalestrs = [f'{tscale}s' for tscale in timescales]
+        tscale_id = '_'.join(tscalestrs)
+    utilities.saveimg(fig, f"confusionmatrix_auditwise_test_{tscale_id}")
     clfreport = sklearn.metrics.classification_report(true_classes,
                             pred_classes, output_dict=True)
 
-    _save_classifier_report(clfreport, "classifier_report_indwise")
+    _save_classifier_report(clfreport, f"classifier_report_auditwise_{tscale_id}")
 
     return clfreport, fig, ax
 
@@ -221,6 +247,12 @@ def classify_all_available_data(rfc):
         ind_preds.to_csv(tgtfile, index=False)
 
 
+def _mp_proc_auditwise(data, tscales, n):
+    print(f"Working on {tscales}")
+    fig, ax = plt.subplots()
+    auditwise_analyze_random_forest(data, tscales, n=10, fig=fig, ax=ax)
+    plt.close(fig)
+
 if __name__ == "__main__":
 
     tscale_singletons = [[t] for t in config.timescales]
@@ -229,16 +261,17 @@ if __name__ == "__main__":
     datasource = os.path.join(config.DATA, "ClassifierRelated",
                         "all_trainable_data_for_classifier.csv")
     data = pd.read_csv(datasource)
+    data["Timestamp"] = pd.to_datetime(data["Timestamp"])
 
     if config.LOG_TRANSFORM_VEDBA:
-        for tscales in timescales:
-            for tscale in tscales:
-                vedba_col = f'mean_vedba_{tscale}s'
-                data[vedba_col] += 1e-10
-                data[vedba_col] = np.log(data[vedba_col])
+        for tscale in config.timescales:
+            vedba_col = f'mean_vedba_{tscale}s'
+            print(data[vedba_col])
+            data[vedba_col] += 1e-10
+            data[vedba_col] = np.log(data[vedba_col])
 
-    for tscales in timescales:
-        print(f"Working on {tscales}")
-        fig, ax = plt.subplots()
-        trad_analyze_random_forest(data, tscales, n=100, fig=fig, ax=ax)
-        plt.cla()
+    tgts = [(data, tscales, 10) for tscales in timescales]
+    pool = mp.Pool()
+    pool.starmap(_mp_proc_auditwise, tgts)
+    pool.close()
+    pool.join()

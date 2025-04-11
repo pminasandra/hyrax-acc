@@ -12,6 +12,7 @@ import os.path
 
 import pandas as pd
 import sklearn.ensemble
+import sklearn.svm
 
 import auditreading
 import config
@@ -64,7 +65,6 @@ def load_feature_data_for(individual, timescales=config.timescales):
 
     df.columns = [f'{col}_{tscale}s' for tscale, col in df.columns]
     df = df.reset_index()
-    print(df)
 
     return df
 
@@ -116,11 +116,10 @@ def load_all_training_data():
 
     all_training_data = pd.concat(all_training_data)
     all_training_data.reset_index(inplace=True)
-    print(all_training_data)
     return all_training_data
 
 
-def train_random_forest(train_features, train_classes):
+def train_random_forest(train_features, train_classes, class_weight="balanced"):
     """
     Creates and trains a random forest classifier.
     Args:
@@ -129,9 +128,11 @@ def train_random_forest(train_features, train_classes):
     Returns:
         sklearn.ensemble.RandomForestClassifier
     """
-    rfc = sklearn.ensemble.RandomForestClassifier(
-            class_weight="balanced"
-            )
+#    rfc = sklearn.ensemble.RandomForestClassifier(
+#            class_weight=class_weight
+#            )
+    rfc = sklearn.svm.SVC(class_weight=class_weight)
+#    rfc = sklearn.neighbors.KNeighborsClassifier(n_neighbors=50)
     rfc.fit(train_features, train_classes)
     return rfc
 
