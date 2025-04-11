@@ -13,7 +13,6 @@ DATA = os.path.join(PROJECTROOT, "Data")
 FIGURES = os.path.join(PROJECTROOT, "Figures")
 ACC_DIR = os.path.join(DATA, "ACC")
 AUDIT_DIR = os.path.join(DATA, "Readable_Audits") #Re-worked using conversions.py
-FEATURES_DIR = os.path.join(DATA, "Features")
 
 formats=['png', 'pdf', 'svg']
 
@@ -33,12 +32,13 @@ MAP_BEHS = {
     'Standing': 'Standing',
     'Vocalising': 'Vocalising'
 }
-SCALE_DATA = True
+SCALE_DATA = False
 LOG_TRANSFORM_VEDBA = True
 
 
 #Context-classifier
 timescales = [1, 3, 5, 7, 9, 11]
+FEATURES_DIRS = {tscale: os.path.join(DATA, f"Features_{tscale}s") for tscale in timescales}
 
 #Miscellaneous
 ACC_FILE_SEP = ";"

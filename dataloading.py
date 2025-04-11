@@ -16,7 +16,7 @@ if not config.SUPPRESS_INFORMATIVE_PRINT:
     old_print = print
     print = utilities.sprint
 
-FEATURES = config.FEATURES_DIR
+FEATURES = config.FEATURES_DIRS
 
 def load_feature_file(filepath):
     """
@@ -28,16 +28,17 @@ def load_feature_file(filepath):
 
     return df
 
-def load_features():
+def load_features(timescales=config.timescales):
     """
     *GENERATOR* Loads all feature files
     """
 
-    for f in glob.glob(joinpaths(FEATURES, "*_extracted_features.csv")):
-        fname = os.path.basename(f)
-        df = load_feature_file(f)
+    for tscale in config.timescales:
+        for f in glob.glob(joinpaths(FEATURES[tscale], "*_extracted_features.csv")):
+            fname = os.path.basename(f)
+            df = load_feature_file(f)
 
-        yield fname, df
+            yield fname, tscale, df
 
 def load_statefile(filepath):
     """

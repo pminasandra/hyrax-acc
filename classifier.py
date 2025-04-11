@@ -20,13 +20,14 @@ import extractor
 import utilities
 
 ALL_FEATURES = list(extractor.ALL_FEATURES.keys())
+ALL_FEATURES = [f'{ft}_{tscale}s' for ft in ALL_FEATURES for tscale in config.timescales]
 
 if not config.SUPPRESS_INFORMATIVE_PRINT:
     old_print = print
     print = utilities.sprint
 
 
-def load_feature_data_for(individual):
+def load_feature_data_for(individual, timescales=config.timescales):
     """
     Loads all available feature data for given deployment and individual.
     Args:
@@ -38,20 +39,35 @@ def load_feature_data_for(individual):
     """
 
     assert individual in config.INDIVIDUALS
+    ft_dfs = {}
 
-    tgtdirpath = os.path.join(config.DATA, "Features")
-    tgtfiles = glob.glob(os.path.join(tgtdirpath, f"Axy*_{individual}_*.csv"))
-    if len(tgtfiles) == 0:
-        return pd.DataFrame()
+    for tscale in timescales:
+        tgtdirpath = os.path.join(config.DATA, f"Features_{tscale}s")
+        tgtfiles = glob.glob(os.path.join(tgtdirpath, f"Axy*_{individual}_*.csv"))
+        if len(tgtfiles) == 0:
+            ft_dfs[tscale] = pd.DataFrame()
+            continue
 
-    all_data = [dataloading.load_feature_file(file_) for file_ in tgtfiles]
-    all_data = pd.concat(all_data)
+        all_data = [dataloading.load_feature_file(file_) for file_ in tgtfiles]
+        all_data = pd.concat(all_data)
 # above concatenation is redundant, only one file per ind ideally
 
-    all_data.sort_values(by='Timestamp', inplace=True)
-    all_data.reset_index(inplace=True)
+        all_data.sort_values(by='Timestamp', inplace=True)
+#        all_data.reset_index(inplace=True)
+        
 
-    return all_data
+        ft_dfs[tscale] = all_data
+
+    for tscale in ft_dfs:
+        ft_dfs[tscale] = ft_dfs[tscale].set_index('Timestamp')
+    df = pd.concat(ft_dfs, axis=1, join='inner')
+
+    df.columns = [f'{col}_{tscale}s' for tscale, col in df.columns]
+    df = df.reset_index()
+    print(df)
+
+    return df
+
 
 
 def load_all_training_data():
@@ -61,11 +77,23 @@ def load_all_training_data():
     """
 
     all_training_data = []
+    audit_data_cache = {}
 
-    for fname, ft_data in dataloading.load_features():
-        ind = fname.split("_")[1]
+    for ind in config.INDIVIDUALS:
         audit_data = auditreading.load_audit_data_for(ind)
+        if audit_data.empty:
+            continue
 
+        ft_data = load_feature_data_for(ind)
+
+#    for fname, tscale, ft_data in dataloading.load_features():
+#        ind = fname.split("_")[1]
+#        if ind not in audit_data_cache:
+#            audit_data = auditreading.load_audit_data_for(ind)
+#            audit_data_cache[ind] = audit_data
+#        else:
+#            audit_data = audit_data_cache[ind]
+#
         cols_needed = list(ft_data.columns)
         cols_needed.append("behaviour_class")
         training_data = ft_data.join(audit_data.set_index('Timestamp'),
@@ -74,20 +102,21 @@ def load_all_training_data():
                                 lsuffix="_l",
                                 rsuffix="_r"
                                 )
-
-        del ft_data
-        del audit_data
-
+#
+#        del ft_data
+#        del audit_data
+#
         training_data = training_data[cols_needed]
         training_data.sort_values(by='Timestamp')
         training_data.reset_index(inplace=True)
 
-        training_data['Individual'] = ind
+        training_data.loc[:, 'Individual'] = ind
 
         all_training_data.append(training_data)
 
     all_training_data = pd.concat(all_training_data)
     all_training_data.reset_index(inplace=True)
+    print(all_training_data)
     return all_training_data
 
 

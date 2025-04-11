@@ -50,22 +50,24 @@ def _save_classifier_report(clfreport, clffilename):
     )
 
 
-def _split_features_and_classes(data):
-    d_features = data[ALL_FEATURES]
+def _split_features_and_classes(data, features=ALL_FEATURES):
+    d_features = data[features]
     d_classes = data["behaviour_class"]
 
     return d_features, d_classes
 
 
-def trad_analyze_random_forest(classifier, t_features, t_classes,
-                                fig=None, ax=None
+def trad_analyze_random_forest(data, timescales, n=100,
+                                fig=None, ax=None,
                               ):
     """
     Implements traditional 85/15 analysis with available data
     Args:
-        classifier: fully trained random forest classifier.
-        t_features, t_classes (list, np.array, or pd.DataFrame): features and
-                           classes from the *test* set.
+        data (pd.DataFrame): all available training data.
+        timescales (list-like): which timescales data should be used from
+        n (int): how many times train-test data should be randomised, and
+                    a new classifier trained.
+        fig (plt.Figure)
         ax (matplotlib.axes._axes.Axes): Where to make plots. if None, additional
                            axes will be made.
     Returns:
@@ -74,31 +76,61 @@ def trad_analyze_random_forest(classifier, t_features, t_classes,
         ax
     """
 
-    pred_classes = classifier.predict(t_features)
+    features = [f'{ft}_{tscale}s' for ft in ALL_FEATURES for tscale in timescales]
+    if fig is None and ax is None:
+        fig, ax = plt.subplots()
+
+    data = data[features + ["Timestamp", "behaviour_class"]].copy()
+    data_features, data_classes = _split_features_and_classes(data, features=features)
+    y_true, y_pred = [], []
+    # I haven't checked if you've created only one of these
+    # I'm writing this code to fix something someone else should
+    # have done properly at the end of last year. This isn't gonna
+    # be code that is completely idiotproof. Be careful in using this.
+    # Don't create a situation where you have just a fig or just an ax.
+    for j in range(n):
+        train_features, test_features, train_classes, test_classes =\
+            sklearn.model_selection.train_test_split(data_features, data_classes,
+            test_size=0.15, stratify=data_classes)
+
+        if config.SCALE_DATA:
+            scaler = StandardScaler()
+            scaler.fit(train_features)
+
+            train_features = scaler.transform(train_features)
+            test_features = scaler.transform(test_features)
+
+        clf = classifier.train_random_forest(train_features, train_classes)
+        pred_classes = clf.predict(test_features)
+        y_true.append(test_classes)
+        y_pred.append(pred_classes)
+
+    t_classes = np.hstack(y_true)
+    pred_classes = np.hstack(y_pred)
+
     clfreport = sklearn.metrics.classification_report(t_classes,
                             pred_classes, output_dict=True)
 
-    _save_classifier_report(clfreport, "classifier_report_randomized")
+    # right file naming
+    if len(timescales) == 1:
+        tscale_id = f'{timescales[0]}s_only'
+    elif len(timescales) > 1:
+        tscalestrs = [f'{tscale}s' for tscale in timescales]
+        tscale_id = '_'.join(tscalestrs)
 
-    if fig is None and ax is None:
-        fig, ax = plt.subplots()
-# I haven't checked if you've created only one of these
-# I'm writing this code to fix something someone else should
-# have done properly at the end of last year. This isn't gonna
-# be code that is completely idiotproof. Be careful in using this.
-# Don't create a situation where you have just a fig or just an ax.
-    sklearn.metrics.ConfusionMatrixDisplay.from_estimator(
-                classifier,
-                t_features,
+    _save_classifier_report(clfreport, f"classifier_report_randomized_{tscale_id}")
+
+    sklearn.metrics.ConfusionMatrixDisplay.from_predictions(
                 t_classes,
+                pred_classes,
                 normalize='true',
                 ax=ax,
                 cmap='Reds',
             )
 
     xlabels = ax.get_xticklabels()
-    ax.set_xticklabels(xlabels, rotation=90)
-    utilities.saveimg(fig, "confusionmatrix_randomized_test")
+    ax.set_xticklabels(xlabels, rotation=45)
+    utilities.saveimg(fig, f"confusionmatrix_randomized_test_{tscale_id}")
 
     return clfreport, fig, ax
 
@@ -191,36 +223,22 @@ def classify_all_available_data(rfc):
 
 if __name__ == "__main__":
 
+    tscale_singletons = [[t] for t in config.timescales]
+    tscale_pairs = [[1, tscale] for tscale in config.timescales]
+    timescales = tscale_singletons + tscale_pairs
     datasource = os.path.join(config.DATA, "ClassifierRelated",
                         "all_trainable_data_for_classifier.csv")
     data = pd.read_csv(datasource)
+
     if config.LOG_TRANSFORM_VEDBA:
-        data['mean_vedba'] += 1e-10
-        data['mean_vedba'] = np.log(data['mean_vedba'])
+        for tscales in timescales:
+            for tscale in tscales:
+                vedba_col = f'mean_vedba_{tscale}s'
+                data[vedba_col] += 1e-10
+                data[vedba_col] = np.log(data[vedba_col])
 
-    data_features, data_classes = _split_features_and_classes(data)
-
-    train_features, test_features, train_classes, test_classes =\
-        sklearn.model_selection.train_test_split(data_features, data_classes,
-        test_size=0.15, stratify=data_classes)
-
-    if config.SCALE_DATA:
-        scaler = StandardScaler()
-        scaler.fit(train_features)
-
-        train_features = scaler.transform(train_features)
-        test_features = scaler.transform(test_features)
-
-    rfc = classifier.train_random_forest(train_features, train_classes)
-
-    fig, ax = plt.subplots()
-    trad_analyze_random_forest(rfc, test_features, test_classes, fig, ax)
-    plt.cla()
-
-    fig, ax = plt.subplots()
-    indwise_analyze_random_forest(data, fig, ax)
-
-    #print()
-    #print("will now proceed with total classification")
-    #rfc_total = classifier.train_random_forest(data_features, data_classes)
-    #classify_all_available_data(rfc_total)
+    for tscales in timescales:
+        print(f"Working on {tscales}")
+        fig, ax = plt.subplots()
+        trad_analyze_random_forest(data, tscales, n=100, fig=fig, ax=ax)
+        plt.cla()
